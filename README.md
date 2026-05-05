@@ -590,18 +590,19 @@
 
     <div class="wegeplan-hero">
       <div class="section-label" style="color:#1a2f6e;">Alle Garagen auf einen Blick</div>
-      <p><span style="background:var(--yellow);color:var(--blue);font-weight:700;padding:2px 8px;border-radius:3px;">Der Download des Wegeplan ist ab Mo. 04. Mai. 2026 verfügbar.</span></p>
-      <p>Der Wegeplan zeigt dir alle teilnehmenden Garagen in Wittlensweiler.</p>
+      <p>Der Interaktive Wegeplan zeigt dir alle <strong>28 Stationen</strong> in Wittlensweiler. Tippe auf einen Marker oder eine Karte, um Details zu sehen.</p>
     </div>
 
+    <!-- ── INTERAKTIVE LAUFKARTE ── -->
+    <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #dce4f0;margin-bottom:24px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
+      <div style="background:var(--blue);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;font-weight:700;color:#a8b8e8;letter-spacing:2px;text-transform:uppercase;">📍 Interaktiver Wegeplan</span>
+        <span style="background:var(--yellow);color:var(--blue);font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">28 Stationen</span>
+      </div>
+      <iframe id="laufkarte-frame" srcdoc="" style="width:100%;height:520px;border:none;display:block;" loading="lazy"></iframe>
+    </div>
 
     <div class="wegeplan-qr-row">
-      <div class="wegeplan-qr-card">
-        <h3>Wegeplan herunterladen</h3>
-        <p>Lade den Wegeplan als PDF herunter und finde alle Garagen-Standorte auf einen Blick.</p>
-
-      </div>
-
       <div class="wegeplan-qr-card" style="border-top-color:var(--green); background:var(--light-green);">
         <h3 style="color:var(--green);">Organisation &amp; Bewirtung</h3>
         <p>Offener Garten für alle von <strong>12:00–15:00 Uhr</strong> durch die Evangelische Kita Wittlensweiler</p>
@@ -620,6 +621,221 @@
     </div>
 
   </div>
+
+  <script>
+  // Inject the Laufkarte HTML into the iframe via srcdoc
+  (function() {
+    var laufkarteHTML = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Laufkarte Wittlensweiler</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%; width: 100%;
+  overflow: hidden;
+  font-family: 'DM Sans', sans-serif;
+  background: #1A1208;
+  display: flex;
+  flex-direction: column;
+}
+#map-wrap { flex: 1; position: relative; min-height: 0; }
+#map { width: 100%; height: 100%; }
+#bottom {
+  flex-shrink: 0;
+  height: 30%;
+  min-height: 140px;
+  max-height: 200px;
+  background: #FFF8EE;
+  border-top: 2px solid #E8D5B0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#legend {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 10px;
+  background: #FEF3DC;
+  border-bottom: 1px solid #E8D5B0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#legend .lbl { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #7A6A50; }
+#legend span { font-size: 10px; color: #3a3220; }
+#cards {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+#cards::-webkit-scrollbar { display: none; }
+.card {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+  width: 148px;
+  background: #FFFDF8;
+  border: 1.5px solid #E8D5B0;
+  border-radius: 10px;
+  padding: 8px 9px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card.highlight { background: #FEF3DC; border-color: #D4820A; }
+.card.active    { border-color: #F5A623; box-shadow: 0 0 0 2px #F5A623; background: #FEF3DC; }
+.card-top { display: flex; align-items: flex-start; gap: 6px; }
+.card-num {
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  background: #1A1208;
+  color: #fff;
+  font-family: 'Fraunces', serif;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.card.highlight .card-num, .card.active .card-num { background: #D4820A; }
+.card-name { font-size: 11px; font-weight: 600; color: #1A1208; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-addr { font-size: 10px; color: #7A6A50; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-type { display: inline-block; font-size: 10px; color: #5A7A4A; background: #EAF0E5; padding: 1px 6px; border-radius: 20px; width: fit-content; }
+.card-warn { font-size: 10px; color: #B84B1A; }
+.leaflet-popup-content-wrapper { border-radius: 8px !important; font-family: 'DM Sans', sans-serif !important; }
+.popup-num { display: inline-block; background: #1A1208; color: #fff; border-radius: 4px; width: 20px; height: 20px; text-align: center; line-height: 20px; font-weight: 700; font-size: 11px; margin-right: 5px; vertical-align: middle; }
+.popup-name { font-weight: 600; font-size: 13px; color: #1A1208; }
+.popup-addr { font-size: 11px; color: #7A6A50; margin: 2px 0; }
+.popup-goods { font-size: 11px; color: #3a3220; }
+</style>
+</head>
+<body>
+<div id="map-wrap"><div id="map"></div></div>
+<div id="bottom">
+  <div id="legend">
+    <span class="lbl">Legende</span>
+    <span>🚗 Garage</span>
+    <span>🏡 Hof</span>
+    <span>🏠 Carport</span>
+    <span>📦 Sonstiges</span>
+    <span>🌿 Garten</span>
+    <span style="color:#B84B1A">⚠️ Nur bei gutem Wetter</span>
+  </div>
+  <div id="cards"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>
+<script>
+const stations = [
+  { num: 1,  name: "🎪 Ev. Kindergarten",           addr: "Immenweg 6",            type: "🌿 Garten",           goods: "Essen & Getränke · Tombola · Kinderschminken · Hüpfburg (12–15 Uhr)", highlight: true },
+  { num: 2,  name: "(Name nicht veröffentlicht)",    addr: "Am Höhebäumle 22/1",    type: "🚗 Garage",           goods: "" },
+  { num: 3,  name: "Fam. Eberle",                   addr: "Grüntalerstraße 24",    type: "📦 Sonstiges",        goods: "Gemischte Ware" },
+  { num: 4,  name: "Fam. Reiffen",                  addr: "Biegel 18",             type: "🚗 Garage/Hof",       goods: "Spielsachen, Deko, Flohmarktartikel" },
+  { num: 5,  name: "Fam. Dölker",                   addr: "Dürrengässle 1",        type: "🚗 Garage",           goods: "Spielzeug, Kinderbücher" },
+  { num: 6,  name: "Frank Geisler",                 addr: "Ortsstraße 12",         type: "📦 Sonstiges",        goods: "Verschiedenes" },
+  { num: 7,  name: "Regina Keck",                   addr: "Ortsstraße 15",         type: "📦 Sonstiges",        goods: "Trödel gemischt" },
+  { num: 8,  name: "Fam. Stelzenmüller/Häberle",    addr: "Ortsstraße 29",         type: "🚗 Garage",           goods: "Spielzeug, Trödel, Haushaltswaren" },
+  { num: 9,  name: "Fam. Opel",                     addr: "Ortsstraße 37",         type: "🏡 Hof",              goods: "Playmobil, verschiedenes, Tupperware" },
+  { num: 10, name: "Gertrud Morlok",                addr: "Springbrunnenweg 6",    type: "🚗 Garage/Scheune",   goods: "Schätze die die Welt noch braucht" },
+  { num: 11, name: "Fam. Morlok/Camin",             addr: "Springbrunnenweg 6",    type: "🚗 Garage",           goods: "Flohmarktschätze, Haushaltswaren, Deko, Spielzeug, Tupperware, Werkzeug" },
+  { num: 12, name: "(Name nicht veröffentlicht)",    addr: "Panoramastraße 10",     type: "🚗 Garage",           goods: "Flohmarktartikel, Kinderkleidung" },
+  { num: 13, name: "Fam. Dölker",                   addr: "Birkenwaldstraße 8",    type: "🚗 Garage, Hof",      goods: "Haba Kinderkleidung, Spielzeug, Bücher" },
+  { num: 14, name: "Fam. Borlinghaus",              addr: "Maienstraße 17",        type: "🏡 Hof",              goods: "Kinderkleidung, Spielsachen", warn: true },
+  { num: 15, name: "Petra Müller & Vera Finkbeiner",addr: "Maienstraße 25",        type: "🚗 Garage",           goods: "Tupperware, Deko, Geräte, Glas, Porzellan, Keramik, Tischdecken" },
+  { num: 16, name: "Fam. Schmieder",                addr: "Wilhelmstraße 2",       type: "🚗 Garage",           goods: "Verschiedenes", warn: true },
+  { num: 17, name: "Fam. Kirgis",                   addr: "Höhenweg 12/1",         type: "🚗 Terrasse/Garage",  goods: "Spielsachen, Kleidung, Deko" },
+  { num: 18, name: "Stefanie Schuster",             addr: "Höhenweg 26",           type: "📦 Sonstiges",        goods: "Kindersachen" },
+  { num: 19, name: "Marga Keinath",                 addr: "Höhenweg 30",           type: "🏡 Hof",              goods: "Kleidung, Spielzeug, Trödel" },
+  { num: 20, name: "Michaela Barth",                addr: "Höhenweg 30",           type: "🏡 Hof",              goods: "Kleidung, Spielzeug, Trödel" },
+  { num: 21, name: "(Name nicht veröffentlicht)",    addr: "Höhenweg 30",           type: "🏡 Hof",              goods: "Tupperware, Kleidung, Deko" },
+  { num: 22, name: "Fam. Weber",                    addr: "Oberer Höhenweg 10",    type: "–",                   goods: "Verschiedenes" },
+  { num: 23, name: "Fam. Hollaus",                  addr: "Oberer Höhenweg 31",    type: "🚗 Garage",           goods: "Gemischte Ware" },
+  { num: 24, name: "Fam. Dölker",                   addr: "Oberer Höhenweg 40",    type: "–",                   goods: "Kinderkleidung, Spielzeug" },
+  { num: 25, name: "Fam. Ziefle",                   addr: "Oberer Höhenweg 42",    type: "🚗 Garage",           goods: "Babyzubehör, Bekleidung für Jungs" },
+  { num: 26, name: "Fam. Müller",                   addr: "Kirschblütenweg 3",     type: "🏠 Carport",          goods: "Spielzeug, Kleidung, Verschiedenes" },
+  { num: 27, name: "Fam. Reichl",                   addr: "Schlehenstraße 16",     type: "🏠 Carport",          goods: "Spielzeug, Kinderkleidung, Allgemeines" },
+  { num: 28, name: "Fam. Steffen",                  addr: "Schlehenstraße 26",     type: "🏡 Hof",              goods: "Kindersachen, Trödel" },
+];
+const map = L.map('map', { zoomControl: true }).setView([48.4718, 8.4505], 15);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+function makeIcon(num, highlight, warn) {
+  const bg = warn ? '#B84B1A' : highlight ? '#D4820A' : '#1A1208';
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="36" viewBox="0 0 34 40"><path d="M17 0C7.6 0 0 7.6 0 17c0 12.7 17 23 17 23s17-10.3 17-23C34 7.6 26.4 0 17 0z" fill="' + bg + '"/><text x="17" y="22" text-anchor="middle" font-family="Georgia,serif" font-weight="900" font-size="' + (num > 9 ? '12':'14') + '" fill="#fff">' + num + '</text></svg>';
+  return L.divIcon({ html: svg, className: '', iconSize: [30,36], iconAnchor: [15,36], popupAnchor: [0,-34] });
+}
+const cardsEl = document.getElementById('cards');
+stations.forEach(s => {
+  const card = document.createElement('div');
+  card.className = 'card' + (s.highlight ? ' highlight' : '');
+  card.innerHTML = '<div class="card-top"><div class="card-num">' + s.num + '</div><div class="card-name">' + s.name + '</div></div><div class="card-addr">📍 ' + s.addr + '</div>' + (s.type !== '–' ? '<span class="card-type">' + s.type + '</span>' : '') + (s.warn ? '<div class="card-warn">⚠️ Nur bei gutem Wetter</div>' : '');
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    if (s._marker) { map.flyTo(s._marker.getLatLng(), 17, { duration: 0.6 }); s._marker.openPopup(); }
+  });
+  cardsEl.appendChild(card);
+  s._card = card;
+});
+function addMarker(s, lat, lng) {
+  const m = L.marker([lat, lng], { icon: makeIcon(s.num, s.highlight, s.warn) }).addTo(map);
+  s._marker = m;
+  const goodsHtml = s.goods ? '<div class="popup-goods">🏷 ' + s.goods + '</div>' : '';
+  const warnHtml  = s.warn  ? '<div style="color:#B84B1A;font-size:11px;margin-top:3px">⚠️ Nur bei gutem Wetter</div>' : '';
+  m.bindPopup('<div style="min-width:170px;max-width:230px"><div style="margin-bottom:4px"><span class="popup-num">' + s.num + '</span><span class="popup-name">' + s.name + '</span></div><div class="popup-addr">📍 ' + s.addr + '</div><div class="popup-addr">' + s.type + '</div>' + goodsHtml + warnHtml + '</div>');
+  m.on('click', () => {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+    s._card.classList.add('active');
+    s._card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  });
+}
+async function geocode(s) {
+  const q = encodeURIComponent(s.addr + ', Wittlensweiler, Freudenstadt, Germany');
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/search?q=' + q + '&format=json&limit=1&countrycodes=de', { headers:{'Accept-Language':'de'} });
+    const d = await r.json();
+    if (d && d.length) return { lat: +d[0].lat, lng: +d[0].lon, found: true };
+  } catch(e) {}
+  return { lat: 48.4718, lng: 8.4490, found: false };
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+(async () => {
+  const hint = document.createElement('div');
+  hint.style.cssText = 'position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(26,18,8,0.85);color:#fff;padding:5px 14px;border-radius:20px;font-size:11px;z-index:500;pointer-events:none;white-space:nowrap;';
+  hint.textContent = '📍 Adressen werden verortet …';
+  document.getElementById('map-wrap').appendChild(hint);
+  for (const s of stations) {
+    const r = await geocode(s);
+    addMarker(s, r.lat, r.lng);
+    if (!r.found) { s._card.style.opacity = '0.5'; s._card.title = 'Adresse konnte nicht verortet werden'; }
+    await sleep(1100);
+  }
+  hint.textContent = '✅ Alle Stationen verortet';
+  setTimeout(() => hint.remove(), 2000);
+  const grp = L.featureGroup(stations.map(s => s._marker).filter(Boolean));
+  map.fitBounds(grp.getBounds().pad(0.08));
+})();
+<\/script>
+</body>
+</html>`;
+    var frame = document.getElementById('laufkarte-frame');
+    if (frame) frame.srcdoc = laufkarteHTML;
+  })();
+  </script>
 
   <!-- ═══════ EINNAHMEN TAB ═══════ -->
   <div class="tab-panel" id="tab-einnahmen">
